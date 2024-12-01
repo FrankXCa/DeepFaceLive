@@ -24,6 +24,7 @@ from .ui.widgets.QBCFaceAlignViewer import QBCFaceAlignViewer
 from .ui.widgets.QBCFaceSwapViewer import QBCFaceSwapViewer
 from .ui.widgets.QBCFrameViewer import QBCFrameViewer
 from .ui.widgets.QBCMergedFrameViewer import QBCMergedFrameViewer
+from .ui.QFaceBeautifier import QFaceBeautifier 
 
 
 class QLiveSwap(qtx.QXWidget):
@@ -55,8 +56,23 @@ class QLiveSwap(qtx.QXWidget):
 
         file_source    = self.file_source    = backend.FileSource   (weak_heap=backend_weak_heap, reemit_frame_signal=reemit_frame_signal, bc_out=multi_sources_bc_out, backend_db=backend_db)
         camera_source  = self.camera_source  = backend.CameraSource (weak_heap=backend_weak_heap, bc_out=multi_sources_bc_out, backend_db=backend_db)
+		face_beautifier_bc_out = backend.BackendConnection()
         face_detector  = self.face_detector  = backend.FaceDetector (weak_heap=backend_weak_heap, reemit_frame_signal=reemit_frame_signal, bc_in=multi_sources_bc_out, bc_out=face_detector_bc_out, backend_db=backend_db )
-        face_marker    = self.face_marker    = backend.FaceMarker   (weak_heap=backend_weak_heap, reemit_frame_signal=reemit_frame_signal, bc_in=face_detector_bc_out, bc_out=face_marker_bc_out, backend_db=backend_db)
+        face_beautifier_bc_out = backend.BackendConnection()
+        face_beautifier = self.face_beautifier = backend.FaceBeautifier(
+            weak_heap=backend_weak_heap,
+            reemit_frame_signal=reemit_frame_signal,
+            bc_in=face_detector_bc_out,
+            bc_out=face_beautifier_bc_out,
+            backend_db=backend_db
+        )
+        face_marker = self.face_marker = backend.FaceMarker(
+            weak_heap=backend_weak_heap,
+            reemit_frame_signal=reemit_frame_signal,
+            bc_in=face_beautifier_bc_out,  # get input from face_beautifier
+            bc_out=face_marker_bc_out,
+            backend_db=backend_db
+        )
         face_aligner   = self.face_aligner   = backend.FaceAligner  (weak_heap=backend_weak_heap, reemit_frame_signal=reemit_frame_signal, bc_in=face_marker_bc_out, bc_out=face_aligner_bc_out, backend_db=backend_db )
         face_animator  = self.face_animator  = backend.FaceAnimator (weak_heap=backend_weak_heap, reemit_frame_signal=reemit_frame_signal, bc_in=face_aligner_bc_out, bc_out=face_merger_bc_out, animatables_path=animatables_path, backend_db=backend_db )
         face_swap_insight  = self.face_swap_insight  = backend.FaceSwapInsight (weak_heap=backend_weak_heap, reemit_frame_signal=reemit_frame_signal, bc_in=face_aligner_bc_out, bc_out=face_swapper_bc_out, faces_path=animatables_path, backend_db=backend_db )
@@ -65,7 +81,19 @@ class QLiveSwap(qtx.QXWidget):
         face_merger    = self.face_merger    = backend.FaceMerger   (weak_heap=backend_weak_heap, reemit_frame_signal=reemit_frame_signal, bc_in=frame_adjuster_bc_out, bc_out=face_merger_bc_out, backend_db=backend_db )
         stream_output  = self.stream_output  = backend.StreamOutput (weak_heap=backend_weak_heap, reemit_frame_signal=reemit_frame_signal, bc_in=face_merger_bc_out, save_default_path=userdata_path, backend_db=backend_db)
 
-        self.all_backends : List[backend.BackendHost] = [file_source, camera_source, face_detector, face_marker, face_aligner, face_animator, face_swap_insight, face_swap_dfm, frame_adjuster, face_merger, stream_output]
+        self.all_backends : List[backend.BackendHost] = [
+            file_source, camera_source, 
+            face_detector, 
+            face_beautifier,  # face filter
+            face_marker, 
+            face_aligner, 
+            face_animator, 
+            face_swap_insight, 
+            face_swap_dfm, 
+            frame_adjuster, 
+            face_merger, 
+            stream_output
+        ]
 
         self.q_file_source    = QFileSource(self.file_source)
         self.q_camera_source  = QCameraSource(self.camera_source)
@@ -241,6 +269,11 @@ class DeepFaceLiveApp(qtx.QXMainApplication):
         self._dfl_wnd = None
         self._t = qtx.QXTimer(interval=1666, timeout=self._on_splash_wnd_expired, single_shot=True, start=True)
         self.initialize()
+	def init_widgets(self):
+		# for face filter
+		controls_l = lib_qt.QXVBoxLayout(spacing=5)
+		self.face_beautifier_panel = QFaceBeautifier(self.backend)
+        controls_l.addWidget(self.face_beautifier_panel)
 
     def on_reinitialize(self):
         self.finalize()

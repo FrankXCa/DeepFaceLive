@@ -1,0 +1,8 @@
+{
+    "FaceBeautifier": {
+        "title": "Face Beautifier",
+        "beauty_level": "Beauty Level",
+        "face_slim": "Face Slim",
+        "chin_slim": "Chin Slim"
+    }
+}

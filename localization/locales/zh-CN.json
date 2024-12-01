@@ -1,0 +1,8 @@
+{
+    "FaceBeautifier": {
+        "title": "美颜",
+        "beauty_level": "美颜程度",
+        "face_slim": "瘦脸",
+        "chin_slim": "瘦下巴"
+    }
+}
